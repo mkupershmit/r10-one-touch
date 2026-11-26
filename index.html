@@ -38,6 +38,12 @@ textarea{resize:vertical;min-height:60px;line-height:1.35}
 .btn.primary{background:var(--pink);color:var(--off)}
 .btn.ghost{background:transparent;color:var(--fg);border:1px solid var(--line)}
 .btn.small{padding:9px 12px;font-size:11px}
+.vbar{display:flex;align-items:center;gap:8px;margin:10px 0}
+.ib{width:42px;height:42px;flex:none;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--fg);display:grid;place-items:center;cursor:pointer;padding:0;transition:background .15s,transform .1s}
+.ib:hover{background:rgba(127,127,127,.15)}.ib:active{transform:scale(.94)}.ib:disabled{opacity:.4;cursor:default}
+.ib svg{width:20px;height:20px;fill:currentColor}
+#vplay{width:48px;height:48px;background:var(--fg);color:var(--bg,#1c3c6c);border-color:transparent}#vplay svg{width:22px;height:22px}
+.vtime{flex:1;font-size:12px;font-variant-numeric:tabular-nums;opacity:.75;text-align:center}
 .btn.big{width:100%;padding:18px 16px;font-size:15px;display:flex;align-items:center;justify-content:center;gap:10px}
 .btn.big svg{width:20px;height:20px}
 .seg{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
@@ -414,7 +420,7 @@ body.simple .chips .chip{padding:8px 12px}
         <b class="vidt">Video del reel <small>(opcional)</small></b>
         <div class="drop" id="vdrop" tabindex="0" role="button" aria-label="Subir video"><strong>Subí o arrastrá el video</strong><br>Ya cortado, hasta 3 minutos. Va en el lugar de la foto, con la marca encima.</div>
         <input type="file" id="vfile" accept="video/*" hidden>
-        <div class="row" id="vctl" hidden><button class="btn ghost small" type="button" id="vplay">Pausar</button><button class="btn ghost small" type="button" id="vsound">Escuchar</button><button class="btn ghost small" type="button" id="vquit">Quitar video</button></div>
+        <div class="vbar" id="vctl" hidden><button class="ib" type="button" id="vplay" aria-label="Pausar" title="Pausar"></button><button class="ib" type="button" id="vback" aria-label="Volver al inicio" title="Volver al inicio"></button><button class="ib" type="button" id="vsound" aria-label="Activar sonido" title="Activar sonido"></button><span class="vtime" id="vtime"></span><button class="ib" type="button" id="vquit" aria-label="Quitar video" title="Quitar video"></button></div>
         <button class="btn primary" type="button" id="vexp" hidden>Descargar video</button>
         <progress id="vprog" max="1" value="0" hidden></progress>
         <p class="hint" id="vmsg" role="status"></p>
@@ -946,10 +952,17 @@ setThumbs([{src:"data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYF
 
 // ---------- Video para reel: el video va en el lugar de la foto, con la marca encima, y se exporta en MP4 ----------
 const vmsg=t=>{$("vmsg").textContent=t};let vBusy=false,vRaf=0;
-function vTick(){cancelAnimationFrame(vRaf);if(!useVid())return;render(cx,cv.width,cv.height,st.tpl,true);if(!st.vid.paused||vBusy)vRaf=requestAnimationFrame(vTick)}
+function vTick(){cancelAnimationFrame(vRaf);if(!useVid())return;render(cx,cv.width,cv.height,st.tpl,true);if(typeof vTime==="function")vTime();if(!st.vid.paused||vBusy)vRaf=requestAnimationFrame(vTick)}
 function mmss(s){s=Math.round(s||0);return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")}
+const VI={play:'<path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.2-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/>',pause:'<rect x="6" y="5" width="4.2" height="14" rx="1.2"/><rect x="13.8" y="5" width="4.2" height="14" rx="1.2"/>',
+  on:'<path d="M4 9.5v5a1 1 0 0 0 1 1h3l4.3 3.6a.8.8 0 0 0 1.3-.6V5.5a.8.8 0 0 0-1.3-.6L8 8.5H5a1 1 0 0 0-1 1z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+  off:'<path d="M4 9.5v5a1 1 0 0 0 1 1h3l4.3 3.6a.8.8 0 0 0 1.3-.6V5.5a.8.8 0 0 0-1.3-.6L8 8.5H5a1 1 0 0 0-1 1z"/><path d="M16.5 9.5l5 5m0-5l-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+  back:'<path d="M6 5h2.2v14H6z"/><path d="M19 5.9v12.2a.9.9 0 0 1-1.4.75L9.6 12.75a.9.9 0 0 1 0-1.5l8-6.1A.9.9 0 0 1 19 5.9z"/>',
+  trash:'<path d="M9 3.5h6l.6 1.5H20v2H4V5h4.4zM6 8.5h12l-.8 11a1.6 1.6 0 0 1-1.6 1.5H8.4a1.6 1.6 0 0 1-1.6-1.5z"/>'};
+function vIco(id,k,lab){const b=$(id);if(b._k!==k){b.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true">'+VI[k]+'</svg>';b._k=k}b.setAttribute("aria-label",lab);b.title=lab}
+function vTime(){const v=st.vid,e=$("vtime");if(e)e.textContent=v&&isFinite(v.duration)?mmss(v.currentTime)+" / "+mmss(v.duration):""}
 function syncVid(){syncDl();const v=st.vid,has=!!v;$("vctl").hidden=!has;$("vexp").hidden=!has;$("vdrop").hidden=has;
-  if(has){$("vplay").textContent=v.paused?"Reproducir":"Pausar";$("vsound").textContent=v.muted?"Escuchar":"Silenciar";
+  if(has){vIco("vplay",v.paused?"play":"pause",v.paused?"Reproducir":"Pausar");vIco("vsound",v.muted?"off":"on",v.muted?"Activar sonido":"Silenciar");vTime();
     if(st.fmt!=="reel"&&!v.paused&&!vBusy){v._wasPlaying=true;v.pause()}}}
 function setVideo(f){if(vBusy)return;if(!f.type.startsWith("video/")){vmsg("Ese archivo no es un video.");return}
   if(st.vid){st.vid.pause();st.vid.removeAttribute("src");st.vid.load()}if(st.vurl)URL.revokeObjectURL(st.vurl);
@@ -967,6 +980,8 @@ cv.addEventListener("drop",e=>{const f=e.dataTransfer.files[0];if(f&&f.type.star
 $("vplay").onclick=()=>{const v=st.vid;if(!v||vBusy)return;v.paused?v.play():v.pause()};
 $("vsound").onclick=()=>{const v=st.vid;if(!v||vBusy)return;v.muted=!v.muted;if(v._spk)v._spk.gain.value=v.muted?0:1;if(!v.muted&&st.actx)st.actx.resume();syncVid()};
 $("vquit").onclick=quitVideo;
+$("vback").onclick=()=>{const v=st.vid;if(!v||vBusy)return;v.currentTime=0;v.onseeked=()=>{v.onseeked=null;if(v.paused)draw();vTime()}};
+vIco("vplay","pause","Pausar");vIco("vback","back","Volver al inicio");vIco("vsound","off","Activar sonido");vIco("vquit","trash","Quitar video");
 let vRec=null,vCancel=false;
 async function exportVid(){const v=st.vid;if(!v)return;if(vBusy){vCancel=true;if(vRec&&vRec.state!=="inactive")vRec.stop();return}
   if(typeof MediaRecorder==="undefined"||!cv.captureStream){vmsg("Este navegador no puede exportar video. Usá Chrome en la compu.");return}
@@ -981,12 +996,12 @@ async function exportVid(){const v=st.vid;if(!v)return;if(vBusy){vCancel=true;if
     const ms=new MediaStream([...cv.captureStream(30).getVideoTracks(),...v._dest.stream.getAudioTracks()]);
     const chunks=[];vRec=new MediaRecorder(ms,{mimeType:type,videoBitsPerSecond:12e6,audioBitsPerSecond:192e3});vRec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
     const stopped=new Promise(r=>vRec.onstop=r);
-    $("vexp").textContent="Cancelar";syncDl();$("vprog").hidden=false;$("vprog").value=0;["vplay","vsound","vquit"].forEach(id=>$(id).disabled=true);
+    $("vexp").textContent="Cancelar";syncDl();$("vprog").hidden=false;$("vprog").value=0;["vplay","vback","vsound","vquit"].forEach(id=>$(id).disabled=true);
     v.ontimeupdate=()=>{$("vprog").value=v.duration?v.currentTime/v.duration:0;const m=`Grabando el video… faltan ${mmss(v.duration-v.currentTime)}. No cambies de pestaña ni minimices la ventana.`;vmsg(m);$("toast").textContent=m};
     v.onended=()=>{if(vRec.state!=="inactive")vRec.stop()};
     vRec.start(1000);await v.play();vTick();await stopped;
     v.ontimeupdate=null;v.onended=null;v.pause();v.loop=true;v.muted=wasMuted;v._spk.gain.value=wasMuted?0:1;ms.getVideoTracks().forEach(t=>t.stop());
-    vBusy=false;$("vexp").textContent="Descargar video";syncDl();$("vprog").hidden=true;["vplay","vsound","vquit"].forEach(id=>$(id).disabled=false);
+    vBusy=false;$("vexp").textContent="Descargar video";syncDl();$("vprog").hidden=true;["vplay","vback","vsound","vquit"].forEach(id=>$(id).disabled=false);
     if(vCancel){vmsg("Exportación cancelada.");v.play();syncVid();return}
     const blob=new Blob(chunks,{type:mp4?"video/mp4":"video/webm"}),name=`r10-${slug()}-reel.${mp4?"mp4":"webm"}`;
     if(blob.size<20000){vmsg("El video salió vacío. Probá de nuevo dejando esta pestaña a la vista mientras graba.");v.play();syncVid();return}
@@ -995,7 +1010,7 @@ async function exportVid(){const v=st.vid;if(!v)return;if(vBusy){vCancel=true;if
     if(!ok){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;a.textContent="Tocá acá para bajarlo";document.body.appendChild(a);a.click();
       $("vmsg").textContent=`Video listo (${mb} MB). Si no se bajó solo: `;$("vmsg").appendChild(a)}
     else vmsg(`Video descargado (${mb} MB).`+(mp4?"":" Salió en WebM: Instagram lo puede rechazar. Actualizá Chrome para exportar en MP4."))}
-  catch(e){vBusy=false;$("vexp").textContent="Descargar video";syncDl();$("vprog").hidden=true;["vplay","vsound","vquit"].forEach(id=>$(id).disabled=false);v.loop=true;vmsg("No se pudo exportar el video ("+(e&&e.message||"error")+").")}}
+  catch(e){vBusy=false;$("vexp").textContent="Descargar video";syncDl();$("vprog").hidden=true;["vplay","vback","vsound","vquit"].forEach(id=>$(id).disabled=false);v.loop=true;vmsg("No se pudo exportar el video ("+(e&&e.message||"error")+").")}}
 $("vexp").onclick=exportVid;
 
 // Encuadre: arrastrar (foto o círculo) y rueda para zoom

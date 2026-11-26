@@ -4,6 +4,7 @@
   },
   "rewrites": [
     { "source": "/favicon.png", "destination": "/api/icon?n=32" },
+    { "source": "/favicon.ico", "destination": "/api/icon?n=32" },
     { "source": "/apple-touch-icon.png", "destination": "/api/icon?n=180" },
     { "source": "/icon-192.png", "destination": "/api/icon?n=192" },
     { "source": "/icon-512.png", "destination": "/api/icon?n=512" },

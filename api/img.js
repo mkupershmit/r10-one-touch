@@ -1,7 +1,8 @@
-// Trae la foto de una nota de los portales del grupo y la entrega desde este mismo sitio,
+// Trae la foto de una nota de los portales del radar y la entrega desde este mismo sitio,
 // así la placa se puede dibujar y descargar (el navegador no deja exportar imágenes de otro dominio).
 import { GRUPO_HOST } from "../lib/radar.js";
-const CDN_OK = /(^|\.)(radio10\.com\.ar|minutouno\.com|c5n\.com|ambito\.com)$/i;
+// Portales del radar y los servidores donde guardan sus fotos.
+const CDN_OK = /(^|\.)(radio10\.com\.ar|minutouno\.com|c5n\.com|ambito\.com|lanacion\.com\.ar|glanacion\.com|infobae\.com|perfil\.com|arcpublishing\.com)$/i;
 export default async function handler(req, res) {
   let u;
   try { u = new URL(String((req.query && req.query.u) || new URL(req.url, "http://x").searchParams.get("u") || "")); } catch { return res.status(400).end(); }

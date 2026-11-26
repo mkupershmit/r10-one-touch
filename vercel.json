@@ -1,5 +1,16 @@
 {
   "functions": {
     "api/radar.js": { "maxDuration": 30 }
-  }
+  },
+  "rewrites": [
+    { "source": "/favicon.png", "destination": "/api/icon?n=32" },
+    { "source": "/apple-touch-icon.png", "destination": "/api/icon?n=180" },
+    { "source": "/icon-192.png", "destination": "/api/icon?n=192" },
+    { "source": "/icon-512.png", "destination": "/api/icon?n=512" },
+    { "source": "/icon-maskable.png", "destination": "/api/icon?n=m512" }
+  ],
+  "headers": [
+    { "source": "/sw.js", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] },
+    { "source": "/manifest.webmanifest", "headers": [{ "key": "Content-Type", "value": "application/manifest+json" }] }
+  ]
 }

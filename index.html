@@ -1046,7 +1046,7 @@ REGLAS
 - Nunca inventes datos, cifras, citas ni consecuencias que no estén en la nota. Las denuncias y versiones se atribuyen.
 Respondé SOLO con JSON: {"titulares":["corto","medio","largo"],"bajadas":{"informativa":"","contexto":"","impacto":""},"seccion":"","frase":{"texto":"","autor":""} o null}`;
 async function aiTitles(title,desc,text){if(aiCtl)aiCtl.abort();const S=await getSample();const st0=$("aiState");
-  if(!S){setTimeout(()=>{if(!/IA/.test(st0.textContent))st0.textContent+=" (La IA para titulares no está configurada en este sitio.)"},0);return}
+  if(!S){setTimeout(()=>{if(!/IA/.test(st0.textContent))st0.append(" (La IA para titulares no está configurada en este sitio.)")},0);return}
   const ctl=new AbortController();aiCtl=ctl;const body=[`TÍTULO ORIGINAL: ${cleanTitle(title)}`,desc?`BAJADA ORIGINAL: ${desc}`:"",text&&text!==title?`TEXTO DE LA NOTA:\n${text.slice(0,7000)}`:""].filter(Boolean).join("\n\n");
   const prev=st0.textContent;st0.textContent="Escribiendo titulares con IA a partir de la nota…";
   try{const r=await S.json(GUIA+"\n\nNOTA\n"+body,{signal:ctl.signal,modelTier:"default"});if(ctl!==aiCtl)return;

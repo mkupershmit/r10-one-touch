@@ -430,6 +430,7 @@ body.simple .chips .chip{padding:8px 12px}
         <button type="button" id="f-story" aria-pressed="false">Historia 9:16</button>
         <button type="button" id="f-reel" aria-pressed="false">Portada reel</button>
         <button type="button" id="f-yt" aria-pressed="false">Portada YouTube</button>
+        <button type="button" id="f-tw" aria-pressed="false">Twitter / X</button>
       </div>
       <p class="hint fmthint" id="fmtHint" role="status"></p>
       <canvas id="cv" width="1080" height="1350" aria-label="Vista previa de la placa"></canvas>
@@ -625,7 +626,7 @@ function render(ctx,W,H,id,main){ctx.save();ctx.clearRect(0,0,W,H);tplById(id).d
 
 
 // ---------- Portadas: Reel 9:16 y YouTube 16:9 (láminas 17 y 23 del manual) ----------
-const FMT={post:{w:1080,h:1350,name:"post"},story:{w:1080,h:1920,name:"historia"},reel:{w:1080,h:1920,name:"portada-reel"},yt:{w:1280,h:720,name:"portada-youtube"}};
+const FMT={post:{w:1080,h:1350,name:"post"},story:{w:1080,h:1920,name:"historia"},reel:{w:1080,h:1920,name:"portada-reel"},yt:{w:1280,h:720,name:"portada-youtube"},tw:{w:1280,h:720,name:"x"}};
 const tplF=t=>t.f||["post","story"];
 // Colores de reel y YouTube (editable "9:16 NOTICIAS REEL"): el panel va con el color de fondo de la etiqueta invertido
 // Ej.: Deporte = panel celeste y texto blanco; Política = panel blanco y texto azul. Entrevista y Editorial, como en el canal.
@@ -835,9 +836,11 @@ TPL.push(
 function goldBar(ctx,W,H){const h=W>H?18:32,g=ctx.createLinearGradient(0,0,W,0);g.addColorStop(0,"#a87a22");g.addColorStop(.3,"#e9c766");g.addColorStop(.5,"#f8e6a6");g.addColorStop(.7,"#e9c766");g.addColorStop(1,"#a87a22");ctx.fillStyle=g;ctx.fillRect(0,H-h,W,h)}
 TPL.filter(t=>t.esp).forEach(t=>{const d=t.draw;t.draw=function(ctx,W,H,L,main){d.call(this,ctx,W,H,L,main);goldBar(ctx,W,H)}});
 const URGENT={urgente:"Urgente",ultimo:"Último momento",yultimo:"Último momento"};
+// Twitter / X (16:9): los mismos diseños de la portada de YouTube, para la imagen del tuit
+TPL.filter(t=>tplF(t).includes("yt")).forEach(t=>{const id="x_"+t.id;TPL.push({...t,id,name:t.name.replace(/Portada YouTube|YouTube/,"X"),f:["tw"]});if(URGENT[t.id])URGENT[id]=URGENT[t.id]});
 
 // Secciones: botones con el color fijo del manual
-const COVER=["Entrevista","Editorial"],coverFmt=()=>st.fmt==="reel"||st.fmt==="yt",secOk=k=>CONTENT.includes(k)||(COVER.includes(k)&&coverFmt());
+const COVER=["Entrevista","Editorial"],coverFmt=()=>st.fmt==="reel"||st.fmt==="yt"||st.fmt==="tw",secOk=k=>CONTENT.includes(k)||(COVER.includes(k)&&coverFmt());
 CONTENT.concat(COVER).forEach(k=>{const b=document.createElement("button");b.type="button";b.className="chip";if(COVER.includes(k)){b.dataset.cover="1";b.hidden=true}b.textContent=k;b.dataset.s=k;b.style.background=SEC[k].bg;b.style.color=SEC[k].fg;
   b.onclick=()=>{setSec(k);save()};$("chips").appendChild(b)});
 function setSec(k){if(!SEC[k]||!secOk(k))k="Deporte";st.sec=k;document.querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed",c.dataset.s===k));draw()}
@@ -865,9 +868,9 @@ function scheduleAll(){draw()}
 const lastTpl={};
 function fmt(f){if(typeof vBusy!=="undefined"&&vBusy)return;if(!FMT[f])f="post";lastTpl[st.fmt]=st.tpl;st.fmt=f;Object.keys(FMT).forEach(k=>$("f-"+k).setAttribute("aria-pressed",k===f));
   document.querySelectorAll(".chip[data-cover]").forEach(b=>b.hidden=!coverFmt());if(!secOk(st.sec)){st.sec="Deporte";document.querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed",c.dataset.s===st.sec))}
-  const Z=FMT[f];cv.width=Z.w;cv.height=Z.h;cv.classList.toggle("story",Z.h>Z.w*1.5);cv.classList.toggle("yt",f==="yt");$("tpls").classList.toggle("wide",f==="yt");
+  const Z=FMT[f];cv.width=Z.w;cv.height=Z.h;cv.classList.toggle("story",Z.h>Z.w*1.5);cv.classList.toggle("yt",f==="yt"||f==="tw");$("tpls").classList.toggle("wide",f==="yt"||f==="tw");
   document.querySelectorAll(".tpl").forEach(b=>b.hidden=!okIn(b.dataset.t));
-  $("fmtHint").textContent={reel:"Reel con el diseño del editable “9:16 Noticias Reel”. Para video, subilo en el paso 4 y exportalo con la marca.",yt:"Miniatura de YouTube 1280×720. Abajo a la derecha YouTube pone la duración: no va texto ahí.",story:"",post:""}[f];
+  $("fmtHint").textContent={reel:"Reel con el diseño del editable “9:16 Noticias Reel”. Para video, subilo en el paso 4 y exportalo con la marca.",yt:"Miniatura de YouTube 1280×720. Abajo a la derecha YouTube pone la duración: no va texto ahí.",tw:"Imagen para Twitter / X en 16:9 (1280×720): se ve completa en el timeline, sin recortes.",story:"",post:""}[f];
   try{localStorage.setItem("r10-fmt",f)}catch(e){}
   st.ox=0;st.oy=0;setTpl(okIn(st.tpl)?st.tpl:(lastTpl[f]&&okIn(lastTpl[f])?lastTpl[f]:""));if(typeof syncVid==="function"){if(f==="reel"&&st.vid&&st.vid.paused&&st.vid._wasPlaying){st.vid._wasPlaying=false;st.vid.play()}syncVid()}}
 Object.keys(FMT).forEach(k=>$("f-"+k).onclick=()=>fmt(k));
@@ -908,7 +911,6 @@ setThumbs([{src:"data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYF
 const vmsg=t=>{$("vmsg").textContent=t};let vBusy=false,vRaf=0;
 function vTick(){cancelAnimationFrame(vRaf);if(!useVid())return;render(cx,cv.width,cv.height,st.tpl,true);if(!st.vid.paused||vBusy)vRaf=requestAnimationFrame(vTick)}
 function mmss(s){s=Math.round(s||0);return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")}
-function syncDl(){const V=useVid();document.querySelectorAll("#dl .dlt,#dlM .dlt").forEach(s=>s.textContent=V?(vBusy?"Cancelar video":"Descargar video"):"Descargar placa");$("dlCover").hidden=!V||vBusy}
 function syncVid(){syncDl();const v=st.vid,has=!!v;$("vctl").hidden=!has;$("vexp").hidden=!has;$("vdrop").hidden=has;
   if(has){$("vplay").textContent=v.paused?"Reproducir":"Pausar";$("vsound").textContent=v.muted?"Escuchar":"Silenciar";
     if(st.fmt!=="reel"&&!v.paused&&!vBusy){v._wasPlaying=true;v.pause()}}}
@@ -1119,8 +1121,8 @@ let downloads=null;
 (async()=>{try{downloads=window.claude?await window.claude.use("downloads"):null}catch(e){downloads=null}})();
 function slug(){const s=(st.tpl==="dijo"||tplById(st.tpl).q)?($("autor").value||$("frase").value):$("titular").value;return s.replace(/\*/g,"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40)||"placa"}
 // YouTube pide miniaturas de menos de 2 MB: se bajan en JPG
-const MIME=()=>st.fmt==="yt"?"image/jpeg":"image/png";
-function fileName(){return `r10-${slug()}-${FMT[st.fmt].name}.${st.fmt==="yt"?"jpg":"png"}`}
+const MIME=()=>st.fmt==="yt"||st.fmt==="tw"?"image/jpeg":"image/png";
+function fileName(){return `r10-${slug()}-${FMT[st.fmt].name}.${st.fmt==="yt"||st.fmt==="tw"?"jpg":"png"}`}
 const touch=matchMedia("(pointer: coarse)").matches;
 function openSheet(url){$("sheetImg").src=url;$("sheet").hidden=false;document.body.style.overflow="hidden";$("sheetClose").focus()}
 function closeSheet(){$("sheet").hidden=true;document.body.style.overflow=""}
@@ -1150,6 +1152,7 @@ function ago(iso){const m=Math.round((Date.now()-new Date(iso).getTime())/60000)
 function setBtypes(list){BT=list;const box=$("btypes");box.innerHTML="";if(list.length<2&&!(list[0]&&list[0].label!=="Original"))return;
   list.forEach((o,i)=>{const b=document.createElement("button");b.type="button";b.textContent=o.label;b.setAttribute("aria-pressed","false");
     b.onclick=()=>{box.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));$("bajada").value=o.b;$("conBajada").checked=true;syncBajada();draw();save()};box.appendChild(b)})}
+let NOTA_CUR="";
 function findNota(url){return RADAR&&RADAR.notas.find(n=>n.url===url)}
 function loadNota(n){$("nota").value=[n.title,n.desc].filter(Boolean).join("\n\n");$("pasteBox").classList.add("ok");NOTE_DESC=n.desc||"";
   if(CONTENT.includes(n.seccion))setSec(n.seccion);
@@ -1158,8 +1161,11 @@ function loadNota(n){$("nota").value=[n.title,n.desc].filter(Boolean).join("\n\n
   const b=n.bajadas||{};setBtypes([["Informativa",b.informativa],["Contexto",b.contexto],["Impacto",b.impacto]].filter(x=>x[1]).map(x=>({label:x[0],b:x[1]})));
   $("bajada").value=b.informativa||clip(n.desc,120);
   if(n.frase&&n.frase.texto){$("frase").value=n.frase.texto;$("autor").value=n.frase.autor||""}
-  st.img=null;st.ox=0;st.oy=0;setThumbs(n.img?[{src:"api/img?u="+encodeURIComponent(n.img),alt:n.title}]:[]);draw();
+  NOTA_CUR=n.url;st.img=null;st.ox=0;st.oy=0;$("thumbs").innerHTML="";draw();
   $("aiState").innerHTML="";const s=document.createElement("span");s.textContent=n.img?`Nota de ${n.src} cargada, con la foto del portal (revisá el encuadre en la vista previa) `:`Nota de ${n.src} cargada. Subí la foto de la nota en el paso 4 `;const a=document.createElement("a");a.href=n.url;a.target="_blank";a.rel="noopener";a.textContent="(abrir la nota)";$("aiState").append(s,a);
+  if(n.img){const fs=document.createElement("span"),src="api/img?u="+encodeURIComponent(n.img),im=new Image();fs.textContent=" · Cargando la foto…";$("aiState").append(fs);
+    im.onload=()=>{if(NOTA_CUR!==n.url)return;setThumbs([{src,alt:n.title}]);fs.textContent=n.imgDe?` · Foto tomada de una nota parecida de ${n.imgDe}: revisá que corresponda.`:""};
+    im.onerror=()=>{if(NOTA_CUR!==n.url)return;fs.textContent=" · No se pudo traer la foto: subila en el paso 4."};im.src=src}
   markSeen([n.url]);document.querySelectorAll(".rn").forEach(x=>x.setAttribute("aria-pressed",x.dataset.url===n.url));
   document.querySelectorAll(".rn .new").forEach(x=>{if(x.closest(".rn").dataset.url===n.url)x.remove()});updateCaps();save()}
 let RFILT="todo",RSEC="todas";
@@ -1283,7 +1289,8 @@ function addCarr(files){const fs=[...files].filter(f=>f.type.startsWith("image/"
 (function(){const d=$("cdrop"),inp=$("cfile");d.onclick=()=>inp.click();d.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();inp.click()}};
   inp.onchange=()=>{addCarr(inp.files);inp.value=""};d.ondragover=e=>{e.preventDefault();d.classList.add("over")};d.ondragleave=()=>d.classList.remove("over");
   d.ondrop=e=>{e.preventDefault();d.classList.remove("over");addCarr(e.dataTransfer.files)}})();
-function syncDl(){const c=tplById(st.tpl).carr,n=st.carr.length+1;document.querySelectorAll(".dlt").forEach(s=>s.textContent=c?`Descargar carrusel (${n} placa${n>1?"s":""})`:"Descargar placa")}
+// Texto del botón principal: video (reel con video cargado), carrusel o placa
+function syncDl(){const V=typeof useVid==="function"&&useVid(),c=!V&&tplById(st.tpl).carr,n=st.carr.length+1;document.querySelectorAll(".dlt").forEach(s=>s.textContent=V?(vBusy?"Cancelar video":"Descargar video"):c?`Descargar carrusel (${n} placa${n>1?"s":""})`:"Descargar placa");if($("dlCover"))$("dlCover").hidden=!V||vBusy}
 // Descarga del carrusel: un .zip en la compu; en el celular, placa por placa
 let JSZipP=null;function loadZip(){if(window.JSZip)return Promise.resolve(window.JSZip);if(!JSZipP)JSZipP=new Promise((ok,ko)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";s.onload=()=>ok(window.JSZip);s.onerror=()=>{JSZipP=null;ko(new Error("zip"))};document.head.appendChild(s)});return JSZipP}
 async function slideBlobs(){const keep=st.cs,out=[],c=document.createElement("canvas");c.width=1080;c.height=1350;const x=c.getContext("2d");

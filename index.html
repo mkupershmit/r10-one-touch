@@ -1158,7 +1158,7 @@ function loadNota(n){$("nota").value=[n.title,n.desc].filter(Boolean).join("\n\n
   const b=n.bajadas||{};setBtypes([["Informativa",b.informativa],["Contexto",b.contexto],["Impacto",b.impacto]].filter(x=>x[1]).map(x=>({label:x[0],b:x[1]})));
   $("bajada").value=b.informativa||clip(n.desc,120);
   if(n.frase&&n.frase.texto){$("frase").value=n.frase.texto;$("autor").value=n.frase.autor||""}
-  if(n.img)setThumbs([{src:"api/img?u="+encodeURIComponent(n.img),alt:n.title}]);
+  st.img=null;st.ox=0;st.oy=0;setThumbs(n.img?[{src:"api/img?u="+encodeURIComponent(n.img),alt:n.title}]:[]);draw();
   $("aiState").innerHTML="";const s=document.createElement("span");s.textContent=n.img?`Nota de ${n.src} cargada, con la foto del portal (revisá el encuadre en la vista previa) `:`Nota de ${n.src} cargada. Subí la foto de la nota en el paso 4 `;const a=document.createElement("a");a.href=n.url;a.target="_blank";a.rel="noopener";a.textContent="(abrir la nota)";$("aiState").append(s,a);
   markSeen([n.url]);document.querySelectorAll(".rn").forEach(x=>x.setAttribute("aria-pressed",x.dataset.url===n.url));
   document.querySelectorAll(".rn .new").forEach(x=>{if(x.closest(".rn").dataset.url===n.url)x.remove()});updateCaps();save()}

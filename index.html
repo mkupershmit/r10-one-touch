@@ -983,49 +983,42 @@ $("vquit").onclick=quitVideo;
 $("vback").onclick=()=>{const v=st.vid;if(!v||vBusy)return;v.currentTime=0;v.onseeked=()=>{v.onseeked=null;if(v.paused)draw();vTime()}};
 vIco("vplay","pause","Pausar");vIco("vback","back","Volver al inicio");vIco("vsound","off","Activar sonido");vIco("vquit","trash","Quitar video");
 let vRec=null,vCancel=false;
-// Elige un formato que de verdad funcione en esta compu: graba una prueba cortita con cada uno y se queda con el primero que sale bien.
-const VTYPES=["video/mp4;codecs=avc1.640028,mp4a.40.2","video/mp4;codecs=avc1.4d0028,mp4a.40.2","video/mp4;codecs=avc1.42E028,mp4a.40.2","video/mp4;codecs=avc3.640028,mp4a.40.2","video/mp4;codecs=avc1,mp4a.40.2","video/mp4","video/webm;codecs=vp9,opus","video/webm;codecs=vp8,opus","video/webm"];
-let vTypeOk=null;const vBad=new Set();
-async function vProbe(t){let s=null;try{const c=document.createElement("canvas");c.width=cv.width;c.height=cv.height;const g=c.getContext("2d");s=c.captureStream(30);const tr=[...s.getVideoTracks()];
-  if(!st.actx)st.actx=new AudioContext();const ac=st.actx;await Promise.race([ac.resume(),new Promise(r=>setTimeout(r,500))]);const d=ac.createMediaStreamDestination();tr.push(...d.stream.getAudioTracks());
-  const r=new MediaRecorder(new MediaStream(tr),{mimeType:t,videoBitsPerSecond:12e6,audioBitsPerSecond:192e3});const ch=[];let bad=false;r.ondataavailable=e=>{if(e.data.size)ch.push(e.data)};r.onerror=()=>bad=true;
-  const done=new Promise(res=>r.onstop=res);r.start(250);
-  for(let k=0;k<24;k++){g.fillStyle=`hsl(${k*15},70%,45%)`;g.fillRect(0,0,c.width,c.height);g.fillStyle="#fff";g.fillRect((k*45)%c.width,(k*80)%c.height,320,320);await new Promise(res=>setTimeout(res,33))}
-  r.stop();await Promise.race([done,new Promise(res=>setTimeout(res,2500))]);const n=ch.reduce((a,b)=>a+b.size,0);return !bad&&n>6000}catch(e){return false}finally{if(s)s.getTracks().forEach(x=>x.stop())}}
-async function vPickType(){if(vTypeOk&&!vBad.has(vTypeOk))return vTypeOk;vTypeOk=null;for(const t of VTYPES){if(vBad.has(t)||!MediaRecorder.isTypeSupported(t))continue;if(await vProbe(t)){vTypeOk=t;return t}vBad.add(t)}return null}
+// Formatos para grabar el reel, en orden de preferencia (MP4 primero, que es lo que pide Instagram).
+const VTYPES=["video/mp4;codecs=avc1.640028,mp4a.40.2","video/mp4;codecs=avc1.4d0028,mp4a.40.2","video/mp4;codecs=avc1.42E028,mp4a.40.2","video/mp4;codecs=avc1,mp4a.40.2","video/mp4","video/webm;codecs=vp9,opus","video/webm;codecs=vp8,opus","video/webm"];
+const vBad=new Set();
+function vPickType(){return VTYPES.find(t=>!vBad.has(t)&&MediaRecorder.isTypeSupported(t))||VTYPES.find(t=>MediaRecorder.isTypeSupported(t))||""}
 async function exportVid(){const v=st.vid;if(!v)return;if(vBusy){vCancel=true;if(vRec&&vRec.state!=="inactive")vRec.stop();return}
-  if(typeof MediaRecorder==="undefined"||!cv.captureStream){vmsg("Este navegador no puede exportar video. Usá Chrome en la compu.");return}
-  vmsg("Preparando la grabación…");const type=await vPickType();
-  if(!type){vmsg("Este navegador no puede exportar video. Usá Chrome en la compu.");return}
-  const mp4=type.startsWith("video/mp4");
-  try{if(!st.actx)st.actx=new AudioContext();const ac=st.actx;
-    if(!v._src){v._src=ac.createMediaElementSource(v);v._dest=ac.createMediaStreamDestination();v._spk=ac.createGain();v._spk.gain.value=v.muted?0:1;v._fade=ac.createGain();v._an=ac.createAnalyser();v._src.connect(v._an);v._src.connect(v._fade);v._fade.connect(v._dest);v._src.connect(v._spk);v._spk.connect(ac.destination)}
-    await ac.resume();
-    vBusy=true;vCancel=false;const wasMuted=v.muted;v.pause();v.loop=false;v.muted=false;v._spk.gain.value=0;
+  if(typeof MediaRecorder==="undefined"||!cv.captureStream||!v.captureStream){vmsg("Este navegador no puede exportar video. Usá Chrome en la compu.");return}
+  const type=vPickType(),mp4=!type||type.startsWith("video/mp4");let vs=null,cs=null;
+  const ui=on=>{vBusy=on;$("vexp").textContent=on?"Cancelar":"Descargar video";syncDl();$("vprog").hidden=!on;["vplay","vback","vsound","vquit"].forEach(id=>$(id).disabled=on)};
+  try{vBusy=true;vCancel=false;const wasMuted=v.muted;v.pause();v.loop=false;v.muted=true;
     v.currentTime=0;await new Promise(r=>{v.onseeked=()=>{v.onseeked=null;r()}});render(cx,cv.width,cv.height,st.tpl,true);
-    const ms=new MediaStream([...cv.captureStream(30).getVideoTracks(),...v._dest.stream.getAudioTracks()]);
-    const chunks=[];vRec=new MediaRecorder(ms,{mimeType:type,videoBitsPerSecond:12e6,audioBitsPerSecond:192e3});vRec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
+    // El sonido se toma directo del video (no depende del audio de la compu), así no puede salir vacío.
+    vs=v.captureStream();cs=cv.captureStream(30);
+    const ms=new MediaStream([...cs.getVideoTracks(),...vs.getAudioTracks()]);
+    const chunks=[];vRec=new MediaRecorder(ms,type?{mimeType:type,videoBitsPerSecond:12e6,audioBitsPerSecond:192e3}:{videoBitsPerSecond:12e6});vRec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
     const stopped=new Promise(r=>vRec.onstop=r);
-    $("vexp").textContent="Cancelar";syncDl();$("vprog").hidden=false;$("vprog").value=0;["vplay","vback","vsound","vquit"].forEach(id=>$(id).disabled=true);
+    ui(true);$("vprog").value=0;
     v.ontimeupdate=()=>{$("vprog").value=v.duration?v.currentTime/v.duration:0;const m=`Grabando el video… faltan ${mmss(v.duration-v.currentTime)}. No cambies de pestaña ni minimices la ventana.`;vmsg(m);$("toast").textContent=m};
     v.onended=()=>{if(vRec.state!=="inactive")vRec.stop()};
-    // Arranca a grabar recién cuando el video ya se ve y el sonido ya llega (así no queda una pausa ni un click al principio).
-    if(v._fade)v._fade.gain.setValueAtTime(0,ac.currentTime);
-    const go=new Promise(r=>{let done=false;const start=()=>{if(done)return;done=true;const g=v._fade&&v._fade.gain,t=ac.currentTime;if(g){g.cancelScheduledValues(t);g.setValueAtTime(0,t);g.linearRampToValueAtTime(1,t+.02)}render(cx,cv.width,cv.height,st.tpl,true);vRec.start(1000);r()};
-      const f=()=>{if(!v._an)return start();const b=new Float32Array(v._an.fftSize),t0=performance.now();const w=()=>{v._an.getFloatTimeDomainData(b);let m=0;for(let i=0;i<b.length;i++)m=Math.max(m,Math.abs(b[i]));if(m>1e-4||performance.now()-t0>200)start();else requestAnimationFrame(w)};w()};
-      v.requestVideoFrameCallback?v.requestVideoFrameCallback(f):v.addEventListener("playing",f,{once:true});setTimeout(start,1500)});
+    // Arranca a grabar recién cuando el video ya está andando (así no queda una pausa al principio).
+    const go=new Promise(r=>{let done=false;const start=()=>{if(done)return;done=true;render(cx,cv.width,cv.height,st.tpl,true);if(vRec.state==="inactive")vRec.start(1000);r()};
+      v.requestVideoFrameCallback?v.requestVideoFrameCallback(start):v.addEventListener("playing",start,{once:true});setTimeout(start,1500)});
     await v.play();await go;vTick();await stopped;
-    v.ontimeupdate=null;v.onended=null;v.pause();v.loop=true;v.muted=wasMuted;v._spk.gain.value=wasMuted?0:1;ms.getVideoTracks().forEach(t=>t.stop());
-    vBusy=false;$("vexp").textContent="Descargar video";syncDl();$("vprog").hidden=true;["vplay","vback","vsound","vquit"].forEach(id=>$(id).disabled=false);
+    v.ontimeupdate=null;v.onended=null;v.pause();v.loop=true;v.muted=wasMuted;
+    ui(false);
     if(vCancel){vmsg("Exportación cancelada.");v.play();syncVid();return}
-    const blob=new Blob(chunks,{type:mp4?"video/mp4":"video/webm"}),name=`r10-${slug()}-reel.${mp4?"mp4":"webm"}`;
-    if(blob.size<20000){vBad.add(type);vTypeOk=null;if(document.visibilityState==="visible"&&[...vBad].length<VTYPES.length){vmsg("Ese formato no anduvo en esta compu. Probando otro…");return exportVid()}vmsg("El video salió vacío. Probá de nuevo dejando esta pestaña a la vista mientras graba.");v.play();syncVid();return}
+    const ext=(vRec.mimeType||type).includes("webm")?"webm":"mp4";
+    const blob=new Blob(chunks,{type:"video/"+ext}),name=`r10-${slug()}-reel.${ext}`;
+    if(blob.size<20000){if(type&&!vBad.has(type)&&document.visibilityState==="visible"){vBad.add(type);vmsg("Probando otra vez con otro formato…");return exportVid()}
+      vmsg("El video salió vacío. Probá de nuevo dejando esta pestaña a la vista mientras graba.");v.play();syncVid();return}
     const mb=(blob.size/1048576).toFixed(1);vmsg(`Video listo (${mb} MB). Guardando…`);$("toast").textContent=`Video listo (${mb} MB).`;v.play();syncVid();
     let ok=false;if(downloads){try{await downloads.save({filename:name,data:blob});ok=true}catch(e){if(e&&e.code==="declined"){vmsg("Descarga cancelada.");return}}}
     if(!ok){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;a.textContent="Tocá acá para bajarlo";document.body.appendChild(a);a.click();
       $("vmsg").textContent=`Video listo (${mb} MB). Si no se bajó solo: `;$("vmsg").appendChild(a)}
-    else vmsg(`Video descargado (${mb} MB).`+(mp4?"":" Salió en WebM: Instagram lo puede rechazar. Actualizá Chrome para exportar en MP4."))}
-  catch(e){vBusy=false;$("vexp").textContent="Descargar video";syncDl();$("vprog").hidden=true;["vplay","vback","vsound","vquit"].forEach(id=>$(id).disabled=false);v.loop=true;vmsg("No se pudo exportar el video ("+(e&&e.message||"error")+").")}}
+    else vmsg(`Video descargado (${mb} MB).`+(ext==="mp4"?"":" Salió en WebM: Instagram lo puede rechazar. Actualizá Chrome para exportar en MP4."))}
+  catch(e){vBusy=false;ui(false);v.loop=true;vmsg("No se pudo exportar el video ("+(e&&e.message||"error")+").")}
+  finally{if(cs)cs.getTracks().forEach(t=>t.stop());if(vs)vs.getTracks().forEach(t=>t.stop())}}
 $("vexp").onclick=exportVid;
 
 // Encuadre: arrastrar (foto o círculo) y rueda para zoom

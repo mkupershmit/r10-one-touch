@@ -989,7 +989,7 @@ async function exportVid(){const v=st.vid;if(!v)return;if(vBusy){vCancel=true;if
   if(!type){vmsg("Este navegador no puede exportar video. Usá Chrome en la compu.");return}
   const mp4=type.startsWith("video/mp4");
   try{if(!st.actx)st.actx=new AudioContext();const ac=st.actx;
-    if(!v._src){v._src=ac.createMediaElementSource(v);v._dest=ac.createMediaStreamDestination();v._spk=ac.createGain();v._spk.gain.value=v.muted?0:1;v._src.connect(v._dest);v._src.connect(v._spk);v._spk.connect(ac.destination)}
+    if(!v._src){v._src=ac.createMediaElementSource(v);v._dest=ac.createMediaStreamDestination();v._spk=ac.createGain();v._spk.gain.value=v.muted?0:1;v._fade=ac.createGain();v._an=ac.createAnalyser();v._src.connect(v._an);v._src.connect(v._fade);v._fade.connect(v._dest);v._src.connect(v._spk);v._spk.connect(ac.destination)}
     await ac.resume();
     vBusy=true;vCancel=false;const wasMuted=v.muted;v.pause();v.loop=false;v.muted=false;v._spk.gain.value=0;
     v.currentTime=0;await new Promise(r=>{v.onseeked=()=>{v.onseeked=null;r()}});render(cx,cv.width,cv.height,st.tpl,true);
@@ -999,7 +999,12 @@ async function exportVid(){const v=st.vid;if(!v)return;if(vBusy){vCancel=true;if
     $("vexp").textContent="Cancelar";syncDl();$("vprog").hidden=false;$("vprog").value=0;["vplay","vback","vsound","vquit"].forEach(id=>$(id).disabled=true);
     v.ontimeupdate=()=>{$("vprog").value=v.duration?v.currentTime/v.duration:0;const m=`Grabando el video… faltan ${mmss(v.duration-v.currentTime)}. No cambies de pestaña ni minimices la ventana.`;vmsg(m);$("toast").textContent=m};
     v.onended=()=>{if(vRec.state!=="inactive")vRec.stop()};
-    vRec.start(1000);await v.play();vTick();await stopped;
+    // Arranca a grabar recién cuando el video ya se ve y el sonido ya llega (así no queda una pausa ni un click al principio).
+    if(v._fade)v._fade.gain.setValueAtTime(0,ac.currentTime);
+    const go=new Promise(r=>{const start=()=>{const g=v._fade&&v._fade.gain,t=ac.currentTime;if(g){g.cancelScheduledValues(t);g.setValueAtTime(0,t);g.linearRampToValueAtTime(1,t+.02)}render(cx,cv.width,cv.height,st.tpl,true);vRec.start(1000);r()};
+      const f=()=>{if(!v._an)return start();const b=new Float32Array(v._an.fftSize),t0=performance.now();const w=()=>{v._an.getFloatTimeDomainData(b);let m=0;for(let i=0;i<b.length;i++)m=Math.max(m,Math.abs(b[i]));if(m>1e-4||performance.now()-t0>200)start();else requestAnimationFrame(w)};w()};
+      v.requestVideoFrameCallback?v.requestVideoFrameCallback(f):v.addEventListener("playing",f,{once:true})});
+    await v.play();await go;vTick();await stopped;
     v.ontimeupdate=null;v.onended=null;v.pause();v.loop=true;v.muted=wasMuted;v._spk.gain.value=wasMuted?0:1;ms.getVideoTracks().forEach(t=>t.stop());
     vBusy=false;$("vexp").textContent="Descargar video";syncDl();$("vprog").hidden=true;["vplay","vback","vsound","vquit"].forEach(id=>$(id).disabled=false);
     if(vCancel){vmsg("Exportación cancelada.");v.play();syncVid();return}

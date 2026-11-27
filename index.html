@@ -1041,15 +1041,15 @@ function comSet(f){if(!f||!f.type||!f.type.startsWith("image/"))return;const im=
   d.ondrop=e=>{e.preventDefault();d.classList.remove("over");comSet(e.dataTransfer.files[0])};
   $("comOn").onchange=()=>{$("comFields").hidden=!comOn();comRedraw()};$("comTxt").oninput=comRedraw})();
 function comRR(ctx,x,y,w,h,r){ctx.beginPath();if(ctx.roundRect)ctx.roundRect(x,y,w,h,r);else ctx.rect(x,y,w,h)}
-function drawCom(ctx,x,y,w,h){const k=w/1500,M=Math.round(32*k),barH=Math.round(84*k),barY=y+h-M-barH,bw=w-2*M;
+function drawCom(ctx,x,y,w,h){const k=w/2000,M=Math.round(32*k),barH=Math.round(84*k),barY=y+h-M-barH,bw=Math.round(w*.66);
   ctx.save();
   ctx.save();ctx.shadowColor="rgba(0,0,0,.45)";ctx.shadowBlur=14*k;ctx.shadowOffsetY=4*k;ctx.fillStyle="#f4f7fb";ctx.fillRect(x+M,barY,bw,barH);ctx.restore();
   ctx.fillStyle="#1e6fd0";ctx.fillRect(x+M,barY,bw,Math.max(3,Math.round(5*k)));
   const t=($("comTxt").value||"").trim().toUpperCase();
   if(t){ctx.fillStyle="#13213f";let fs=Math.round(44*k);ctx.font=`800 ${fs}px Montserrat`;while(fs>12&&ctx.measureText(t).width>bw-56*k){fs--;ctx.font=`800 ${fs}px Montserrat`}
     ctx.textBaseline="middle";ctx.fillText(t,x+M+28*k,barY+barH/2+3*k);ctx.textBaseline="alphabetic"}
-  const hh=Math.round(80*k),pad=Math.round(10*k),gap=Math.round(26*k);let bwid=Math.round(w*.36),ph=bwid-2*pad;
-  const avail=barY-gap-(y+M)-hh-2*pad;if(ph>avail){ph=Math.max(40,avail);bwid=Math.max(ph+2*pad,Math.round(w*.26))}
+  const hh=Math.round(80*k),pad=Math.round(10*k),gap=Math.round(26*k);let bwid=Math.round(w*.22),ph=bwid-2*pad;
+  const avail=barY-gap-(y+M)-hh-2*pad;if(ph>avail){ph=Math.max(40,avail);bwid=Math.max(ph+2*pad,Math.round(w*.18))}
   const bx=x+M,by=barY-gap-(hh+ph+2*pad),pw=bwid-2*pad,px=bx+pad,py=by+hh+pad;
   ctx.save();ctx.shadowColor="rgba(0,0,0,.45)";ctx.shadowBlur=16*k;ctx.shadowOffsetY=5*k;ctx.fillStyle="#1a5fb8";comRR(ctx,bx,by,bwid,hh+ph+2*pad,8*k);ctx.fill();ctx.restore();
   const g=ctx.createLinearGradient(0,by,0,by+hh);g.addColorStop(0,"#2b7fe0");g.addColorStop(1,"#1d66c2");ctx.fillStyle=g;comRR(ctx,bx,by,bwid,hh,8*k);ctx.fill();

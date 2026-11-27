@@ -44,6 +44,8 @@ textarea{resize:vertical;min-height:60px;line-height:1.35}
 .ib svg{width:20px;height:20px;fill:currentColor}
 #vplay{width:48px;height:48px;background:var(--fg);color:var(--bg,#1c3c6c);border-color:transparent}#vplay svg{width:22px;height:22px}
 .vtime{flex:1;font-size:12px;font-variant-numeric:tabular-nums;opacity:.75;text-align:center}
+.combox{margin-top:12px;border-top:1px solid var(--line);padding-top:12px}
+#comFields{display:grid;gap:10px;margin-top:10px}#comFields[hidden]{display:none}
 .btn.big{width:100%;padding:18px 16px;font-size:15px;display:flex;align-items:center;justify-content:center;gap:10px}
 .btn.big svg{width:20px;height:20px}
 .seg{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
@@ -424,6 +426,13 @@ body.simple .chips .chip{padding:8px 12px}
         <button class="btn primary" type="button" id="vexp" hidden>Descargar video</button>
         <progress id="vprog" max="1" value="0" hidden></progress>
         <p class="hint" id="vmsg" role="status"></p>
+        <div class="combox"><label class="check" for="comOn"><input type="checkbox" id="comOn"> Sumar recuadro “En comunicación”</label>
+          <div id="comFields" hidden>
+            <div class="drop" id="comDrop" tabindex="0" role="button" aria-label="Subir la foto de quien está en comunicación"><strong>Foto de quien habla</strong><br>Subila o arrastrala acá.</div>
+            <input type="file" id="comFile" accept="image/*" hidden>
+            <label for="comTxt">Texto de la barra <small>Nombre | cargo</small><input type="text" id="comTxt" maxlength="90" placeholder="Ramiro Heredia | Médico clínico, M.N. 117.882"></label>
+          </div>
+        </div>
       </div>
       <label for="zoom">Zoom <input type="range" id="zoom" min="1" max="3" step="0.01" value="1"></label>
       <div class="row" id="resetRow"><button class="btn ghost small" type="button" id="reset">Recentrar foto</button><span class="hint">Arrastrá la foto en la vista previa para encuadrar.</span></div>
@@ -638,7 +647,8 @@ const TPL=[
 ];
 const tplById=id=>TPL.find(t=>t.id===id);
 
-function render(ctx,W,H,id,main){ctx.save();ctx.clearRect(0,0,W,H);tplById(id).draw(ctx,W,H,lay(W,H),main);ctx.restore()}
+function render(ctx,W,H,id,main){ctx.save();ctx.clearRect(0,0,W,H);tplById(id).draw(ctx,W,H,lay(W,H),main);ctx.restore();
+  if(main&&st.fmt==="reel"&&st.box&&typeof comOn==="function"&&comOn()){const b=st.box;ctx.save();ctx.beginPath();ctx.rect(b.x,b.y,b.w,b.h);ctx.clip();drawCom(ctx,b.x,b.y,b.w,b.h);ctx.restore()}}
 
 
 // ---------- Portadas: Reel 9:16 y YouTube 16:9 (láminas 17 y 23 del manual) ----------
@@ -1020,6 +1030,36 @@ async function exportVid(){const v=st.vid;if(!v)return;if(vBusy){vCancel=true;if
   catch(e){vBusy=false;ui(false);v.loop=true;vmsg("No se pudo exportar el video ("+(e&&e.message||"error")+").")}
   finally{if(cs)cs.getTracks().forEach(t=>t.stop());if(vs)vs.getTracks().forEach(t=>t.stop())}}
 $("vexp").onclick=exportVid;
+
+// "En comunicación": recuadro con la foto de quien habla y barra con nombre | cargo, encima del video o la foto del reel.
+var COM_IMG=null;
+function comOn(){const c=$("comOn");return !!(c&&c.checked)}
+function comRedraw(){if(!(st.vid&&!st.vid.paused))draw()}
+function comSet(f){if(!f||!f.type||!f.type.startsWith("image/"))return;const im=new Image();im.onload=()=>{COM_IMG=im;$("comDrop").innerHTML="<strong>Foto cargada ✓</strong><br>Tocá para cambiarla.";comRedraw()};im.src=URL.createObjectURL(f)}
+(function(){const d=$("comDrop"),i=$("comFile");d.onclick=()=>i.click();d.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();i.click()}};
+  i.onchange=()=>i.files[0]&&comSet(i.files[0]);d.ondragover=e=>{e.preventDefault();d.classList.add("over")};d.ondragleave=()=>d.classList.remove("over");
+  d.ondrop=e=>{e.preventDefault();d.classList.remove("over");comSet(e.dataTransfer.files[0])};
+  $("comOn").onchange=()=>{$("comFields").hidden=!comOn();comRedraw()};$("comTxt").oninput=comRedraw})();
+function comRR(ctx,x,y,w,h,r){ctx.beginPath();if(ctx.roundRect)ctx.roundRect(x,y,w,h,r);else ctx.rect(x,y,w,h)}
+function drawCom(ctx,x,y,w,h){const k=w/1500,M=Math.round(32*k),barH=Math.round(84*k),barY=y+h-M-barH,bw=w-2*M;
+  ctx.save();
+  ctx.save();ctx.shadowColor="rgba(0,0,0,.45)";ctx.shadowBlur=14*k;ctx.shadowOffsetY=4*k;ctx.fillStyle="#f4f7fb";ctx.fillRect(x+M,barY,bw,barH);ctx.restore();
+  ctx.fillStyle="#1e6fd0";ctx.fillRect(x+M,barY,bw,Math.max(3,Math.round(5*k)));
+  const t=($("comTxt").value||"").trim().toUpperCase();
+  if(t){ctx.fillStyle="#13213f";let fs=Math.round(44*k);ctx.font=`800 ${fs}px Montserrat`;while(fs>12&&ctx.measureText(t).width>bw-56*k){fs--;ctx.font=`800 ${fs}px Montserrat`}
+    ctx.textBaseline="middle";ctx.fillText(t,x+M+28*k,barY+barH/2+3*k);ctx.textBaseline="alphabetic"}
+  const hh=Math.round(80*k),pad=Math.round(10*k),gap=Math.round(26*k);let bwid=Math.round(w*.36),ph=bwid-2*pad;
+  const avail=barY-gap-(y+M)-hh-2*pad;if(ph>avail){ph=Math.max(40,avail);bwid=Math.max(ph+2*pad,Math.round(w*.26))}
+  const bx=x+M,by=barY-gap-(hh+ph+2*pad),pw=bwid-2*pad,px=bx+pad,py=by+hh+pad;
+  ctx.save();ctx.shadowColor="rgba(0,0,0,.45)";ctx.shadowBlur=16*k;ctx.shadowOffsetY=5*k;ctx.fillStyle="#1a5fb8";comRR(ctx,bx,by,bwid,hh+ph+2*pad,8*k);ctx.fill();ctx.restore();
+  const g=ctx.createLinearGradient(0,by,0,by+hh);g.addColorStop(0,"#2b7fe0");g.addColorStop(1,"#1d66c2");ctx.fillStyle=g;comRR(ctx,bx,by,bwid,hh,8*k);ctx.fill();
+  const ht="EN COMUNICACIÓN";let fs2=Math.round(40*k);ctx.fillStyle="#fff";ctx.font=`800 ${fs2}px Montserrat`;while(fs2>10&&ctx.measureText(ht).width>bwid-44*k){fs2--;ctx.font=`800 ${fs2}px Montserrat`}
+  ctx.textBaseline="middle";ctx.fillText(ht,bx+22*k,by+hh/2+2*k);ctx.textBaseline="alphabetic";
+  ctx.fillStyle="#0d2a5c";ctx.fillRect(px,py,pw,ph);
+  if(COM_IMG){const s=Math.max(pw/COM_IMG.width,ph/COM_IMG.height),dw=COM_IMG.width*s,dh=COM_IMG.height*s;ctx.save();ctx.beginPath();ctx.rect(px,py,pw,ph);ctx.clip();ctx.drawImage(COM_IMG,px+(pw-dw)/2,py+(ph-dh)*.3,dw,dh);ctx.restore()}
+  else{ctx.fillStyle="rgba(255,255,255,.6)";ctx.font=`700 ${Math.round(26*k)}px Montserrat`;ctx.textAlign="center";ctx.fillText("SUBÍ LA FOTO",px+pw/2,py+ph/2);ctx.textAlign="left"}
+  ctx.strokeStyle="#4d9bff";ctx.lineWidth=Math.max(2,3*k);ctx.strokeRect(px,py,pw,ph);
+  ctx.restore()}
 
 // Encuadre: arrastrar (foto o círculo) y rueda para zoom
 let drag=null;
